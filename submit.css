@@ -4,22 +4,27 @@
 }
 
 :root {
-  --bg: #09070c;
-  --panel: #120e18;
+  --bg: #08060b;
+  --panel: #110d17;
   --panel2: #191321;
   --border: rgba(255,255,255,.09);
-  --text: #f4edf8;
-  --muted: #94899e;
-  --accent: #ac58e9;
+  --text: #f7f0fa;
+  --muted: #988da1;
+  --accent: #b45af0;
   --accent2: #7928c8;
   --danger: #ff526b;
+  --radius: 15px;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(ellipse at top, rgba(126,42,170,.15), transparent 55%),
+    radial-gradient(ellipse at 50% -15%, rgba(153,54,205,.20), transparent 55%),
     var(--bg);
   color: var(--text);
   font-family: Arial, sans-serif;
@@ -33,14 +38,20 @@ button {
   cursor: pointer;
 }
 
+/* HEADER */
+
 .topbar {
   height: 66px;
   padding: 0 5%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(9,6,13,.94);
+  backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);
-  background: rgba(12,8,16,.92);
 }
 
 .brand {
@@ -54,12 +65,13 @@ button {
 }
 
 .logo {
-  width: 37px;
-  height: 37px;
+  width: 39px;
+  height: 39px;
   display: grid;
   place-items: center;
-  border-radius: 11px;
+  border-radius: 12px;
   background: linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow: 0 5px 22px rgba(172,88,233,.25);
   font-size: 17px;
 }
 
@@ -69,37 +81,55 @@ button {
   letter-spacing: 2px;
 }
 
+/* MAIN */
+
 .container {
-  width: min(100% - 30px, 1050px);
-  margin: 45px auto;
+  width: min(100% - 30px, 1100px);
+  margin: 42px auto;
 }
 
 .heading {
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 }
 
 .heading h1 {
-  margin: 0 0 9px;
-  font-size: clamp(25px, 5vw, 36px);
+  margin: 0 0 10px;
+  font-size: clamp(26px,5vw,38px);
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.heading h1::after {
+  content: "";
+  display: block;
+  width: 65px;
+  height: 4px;
+  margin-top: 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg,var(--accent),transparent);
 }
 
 .heading p {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.8;
 }
 
+/* DETAILS */
+
 .details {
-  padding: 24px;
-  margin-bottom: 22px;
-  background: var(--panel);
+  padding: 25px;
+  margin-bottom: 23px;
+  background: linear-gradient(145deg,#15101d,#0e0a13);
   border: 1px solid var(--border);
-  border-radius: 17px;
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
 }
 
 .details > label {
   display: block;
-  margin: 17px 0 10px;
+  margin: 18px 0 10px;
   font-size: 13px;
   font-weight: bold;
 }
@@ -111,29 +141,31 @@ button {
 #templateName,
 #description {
   width: 100%;
-  padding: 14px;
+  padding: 14px 15px;
   color: var(--text);
-  background: #0c0911;
+  background: #09070d;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 11px;
   outline: none;
+  transition: .2s;
 }
 
 #templateName:focus,
 #description:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(172,88,233,.1);
+  box-shadow: 0 0 0 3px rgba(172,88,233,.12);
 }
 
 #description {
-  min-height: 105px;
+  min-height: 110px;
   resize: vertical;
+  line-height: 1.7;
 }
 
 #nameField small {
   display: block;
   color: var(--danger);
-  margin-top: 6px;
+  margin-top: 7px;
 }
 
 #nameField.is-error input {
@@ -143,9 +175,12 @@ button {
 .details > small {
   color: var(--muted);
   display: block;
-  margin-top: 7px;
+  margin-top: 8px;
   text-align: left;
+  font-size: 11px;
 }
+
+/* MODES */
 
 .modes {
   display: flex;
@@ -154,32 +189,42 @@ button {
 }
 
 .modes label {
-  padding: 12px 15px;
+  padding: 13px 16px;
   background: var(--panel2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 11px;
   font-size: 13px;
   cursor: pointer;
+  transition: .2s;
+}
+
+.modes label:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(172,88,233,.12);
+  color: white;
 }
 
 .modes input {
   accent-color: var(--accent);
 }
 
+/* EDITOR */
+
 .editor-card {
   overflow: hidden;
-  background: #0b0710;
-  border: 1px solid var(--border);
-  border-radius: 17px;
+  background: #09070d;
+  border: 1px solid rgba(172,88,233,.22);
+  border-radius: 18px;
+  box-shadow: 0 15px 45px rgba(0,0,0,.25);
 }
 
 .editor-header {
-  height: 55px;
-  padding: 0 18px;
+  min-height: 58px;
+  padding: 0 19px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--panel);
+  background: linear-gradient(90deg,#171020,#100b16);
   border-bottom: 1px solid var(--border);
 }
 
@@ -189,40 +234,53 @@ button {
 
 .editor-header span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tabs {
   display: flex;
-  gap: 5px;
-  padding: 10px;
+  gap: 7px;
+  padding: 11px;
   background: #100b16;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
 .code-editor__tab {
-  padding: 9px 20px;
-  border: 0;
-  border-radius: 8px;
+  flex: 0 0 auto;
+  padding: 10px 21px;
+  border: 1px solid transparent;
+  border-radius: 9px;
   color: var(--muted);
   background: transparent;
   font-size: 12px;
+  font-weight: bold;
+  transition: .2s;
+}
+
+.code-editor__tab:hover {
+  color: white;
+  background: rgba(255,255,255,.05);
 }
 
 .code-editor__tab.is-active {
   color: white;
-  background: #30203e;
+  background: rgba(172,88,233,.17);
+  border-color: rgba(172,88,233,.35);
 }
 
 .code-editor__pane {
   display: none;
   height: 440px;
   overflow: hidden;
+  background: #0b0810;
 }
 
 .code-editor__pane.is-active {
   display: block;
 }
+
+/* ACTIONS */
 
 .actions {
   display: flex;
@@ -233,10 +291,10 @@ button {
 }
 
 .actions button {
-  min-width: 145px;
-  padding: 14px 20px;
+  min-width: 155px;
+  padding: 14px 21px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 11px;
   color: white;
   background: var(--panel2);
   font-weight: bold;
@@ -246,6 +304,7 @@ button {
 #submitBtn {
   border: 0;
   background: linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow: 0 7px 22px rgba(121,40,200,.22);
 }
 
 .actions button:hover {
@@ -259,13 +318,15 @@ button {
   transform: none;
 }
 
+/* PREVIEW */
+
 #preview {
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: white;
 }
 
 #preview[hidden] {
@@ -273,21 +334,23 @@ button {
 }
 
 .preview-header {
-  height: 55px;
-  padding: 0 15px;
+  height: 58px;
+  min-height: 58px;
+  padding: 0 17px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   color: white;
   background: #120e18;
+  border-bottom: 1px solid var(--border);
 }
 
 .preview-header button {
-  padding: 8px 16px;
+  padding: 9px 17px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   color: white;
-  background: #7928c8;
+  background: var(--accent2);
 }
 
 #previewFrame {
@@ -297,27 +360,53 @@ button {
   background: white;
 }
 
+/* FOOTER */
+
 footer {
-  padding: 25px 12px;
+  padding: 26px 12px;
+  margin-top: 40px;
   border-top: 1px solid var(--border);
   color: var(--muted);
   text-align: center;
   font-size: 11px;
 }
 
+/* CODEMIRROR */
+
 .evora-codemirror,
 .evora-codemirror .cm-editor {
   height: 100%;
 }
 
+.cm-editor {
+  font-size: 14px;
+}
+
+.cm-scroller {
+  overflow: auto;
+  font-family: Consolas, monospace;
+}
+
+.cm-gutters {
+  background: #0b0810 !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+/* MOBILE */
+
 @media (max-width: 600px) {
   .topbar {
-    height: 58px;
+    height: 59px;
     padding: 0 15px;
   }
 
   .brand {
     font-size: 15px;
+  }
+
+  .logo {
+    width: 34px;
+    height: 34px;
   }
 
   .dev {
@@ -326,15 +415,33 @@ footer {
   }
 
   .container {
-    margin: 28px auto;
+    margin: 27px auto;
+  }
+
+  .heading {
+    margin-bottom: 21px;
   }
 
   .details {
     padding: 17px;
+    border-radius: 14px;
+  }
+
+  .modes {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .code-editor__pane {
-    height: 380px;
+    height: 390px;
+  }
+
+  .code-editor__tab {
+    padding: 10px 17px;
+  }
+
+  .editor-header {
+    padding: 0 13px;
   }
 
   .actions {
@@ -344,5 +451,19 @@ footer {
 
   .actions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .dev {
+    letter-spacing: 0;
+  }
+
+  .heading h1 {
+    font-size: 25px;
+  }
+
+  .code-editor__pane {
+    height: 340px;
   }
   }
