@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVORA CODE — Library</title>
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="brand">
+    <span class="logo">&lt;/&gt;</span>
+    EVORA CODE
+  </a>
+  <a href="submit.html" class="create-btn">+ نشر قالب</a>
+</header>
+
+<main class="container">
+  <section class="hero">
+    <span class="eyebrow">EVORA COMMUNITY</span>
+    <h1>مكتبة القوالب</h1>
+    <p>كل مشاريعك وقوالبك البرمجية في مكان واحد.</p>
+  </section>
+
+  <section class="toolbar">
+    <input id="searchInput" type="search"
+      placeholder="ابحث عن قالب...">
+
+    <select id="sortSelect">
+      <option value="newest">الأحدث أولاً</option>
+      <option value="oldest">الأقدم أولاً</option>
+      <option value="name">الاسم</option>
+    </select>
+  </section>
+
+  <div class="library-info">
+    <span id="templatesCount">0 قالب</span>
+    <button id="refreshBtn">تحديث</button>
+  </div>
+
+  <section id="templatesGrid" class="templates-grid"></section>
+
+  <section id="emptyState" class="empty" hidden>
+    <div class="empty-icon">&lt;/&gt;</div>
+    <h2>المكتبة فارغة</h2>
+    <p>ابدأ بإنشاء أول قالب برمجي لك.</p>
+    <a href="submit.html">إنشاء قالب جديد</a>
+  </section>
+</main>
+
+<div id="preview" class="preview" hidden>
+  <div class="preview-header">
+    <strong id="previewTitle">معاينة القالب</strong>
+    <button id="closePreview">إغلاق</button>
+  </div>
+  <iframe id="previewFrame" sandbox="allow-scripts allow-forms"
+    title="معاينة القالب"></iframe>
+</div>
+
+<footer>© 2026 WINE 🍷 — All Rights Reserved.</footer>
+
+<script type="module" src="library.js"></script>
+</body>
+</html>
