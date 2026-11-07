@@ -1,191 +1,238 @@
 
-const $ = selector => document.querySelector(selector);
-
-const grid = $("#templatesGrid");
-const empty = $("#emptyState");
-const count = $("#templatesCount");
-
 const STORAGE_KEY = "evora_templates";
+const EDIT_KEY = "evora_edit_template";
 
-function getTemplates() {
+const $ = (selector) => document.querySelector(selector);
+
+let templates = [];
+
+function loadTemplates() {
   try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(data) ? data : [];
+    templates = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || "[]"
+    );
+
+    if (!Array.isArray(templates)) templates = [];
   } catch {
-    return [];
+    templates = [];
   }
+
+  renderTemplates();
 }
 
-function saveTemplates(templates) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+function saveTemplates() {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(templates)
+  );
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
+function escapeHTML(value = "") {
+  return String(value).replace(/[&<>"']/g, char => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
-    "'": "&#39;"
+    "'": "&#039;"
   })[char]);
 }
 
-function buildDocument(template) {
-  const mode = template.status || "split";
-  let html = template.html || "";
+function renderTemplates() {
+  const grid = $("#templatesGrid");
+  const empty = $("#emptyState");
+  const count = $("#templatesCount");
 
-  if (mode !== "unified") {
-    const style = template.css
-      ? `<style>${template.css.replace(/<\/style/gi, "<\\/style")}</style>`
-      : "";
+  if (!grid) return;
 
-    const script = template.js
-      ? `<script>${template.js.replace(/<\/script/gi, "<\\/script")}<\/script>`
-      : "";
+  const search = ($("#searchInput")?.value || "")
+    .trim()
+    .toLowerCase();
 
-    if (!/<!doctype\s+html/i.test(html) && !/<html[\s>]/i.test(html)) {
-      html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-</head><body>${html}</body></html>`;
-    }
+  const sort = $("#sortSelect")?.value || "newest";
 
-    if (style) {
-      html = /<\/head>/i.test(html)
-        ? html.replace(/<\/head>/i, style + "</head>")
-        : style + html;
-    }
+  let filtered = templates.filter(item =>
+    `${item.name} ${item.description}`
+      .toLowerCase()
+      .includes(search)
+  );
 
-    if (script) {
-      html = /<\/body>/i.test(html)
-        ? html.replace(/<\/body>/i, script + "</body>")
-        : html + script;
-    }
-  }
-
-  return html;
-}
-
-function openPreview(template) {
-  $("#previewTitle").textContent = template.name || "معاينة القالب";
-  $("#previewFrame").srcdoc = buildDocument(template);
-  $("#preview").hidden = false;
-  document.body.style.overflow = "hidden";
-}
-
-function closePreview() {
-  $("#preview").hidden = true;
-  $("#previewFrame").srcdoc = "";
-  document.body.style.overflow = "";
-}
-
-$("#closePreview").addEventListener("click", closePreview);
-
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape") closePreview();
-});
-
-function downloadTemplate(template) {
-  const files = [
-    ["index.html", template.html || ""]
-  ];
-
-  if (template.status !== "unified") {
-    files.push(["style.css", template.css || ""]);
-    files.push(["script.js", template.js || ""]);
-  }
-
-  files.forEach(([filename, content]) => {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = filename;
-    link.click();
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-}
-
-function render() {
-  const templates = getTemplates();
-  const query = $("#searchInput").value.trim().toLowerCase();
-  const sort = $("#sortSelect").value;
-
-  let filtered = templates.filter(template => {
-    const name = String(template.name || "").toLowerCase();
-    const description = String(template.description || "").toLowerCase();
-
-    return name.includes(query) || description.includes(query);
-  });
-
-  if (sort === "newest") {
+  if (sort === "oldest") {
     filtered.sort((a, b) =>
-      new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      new Date(a.createdAt) - new Date(b.createdAt)
     );
-  } else if (sort === "oldest") {
+  } else if (sort === "name") {
     filtered.sort((a, b) =>
-      new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+      a.name.localeCompare(b.name)
     );
   } else {
     filtered.sort((a, b) =>
-      String(a.name || "").localeCompare(String(b.name || ""))
+      new Date(b.updatedAt || b.createdAt) -
+      new Date(a.updatedAt || a.createdAt)
     );
   }
 
-  count.textContent = templates.length + " قالب";
-  grid.replaceChildren();
+  if (count) count.textContent = filtered.length;
 
-  empty.hidden = filtered.length !== 0;
+  if (empty) {
+    empty.style.display = filtered.length ? "none" : "block";
+  }
 
-  filtered.forEach(template => {
-    const card = document.createElement("article");
-    card.className = "template-card";
-
-    card.innerHTML = `
-      <div class="template-icon">&lt;/&gt;</div>
-      <h3>${escapeHTML(template.name)}</h3>
-      <p>${escapeHTML(template.description || "لا يوجد وصف لهذا القالب.")}</p>
-      <div class="template-meta">
-        <span>${template.status === "unified" ? "HTML واحد" : "3 ملفات"}</span>
-        <span>${escapeHTML(
-          template.createdAt
-            ? new Date(template.createdAt).toLocaleDateString("ar-EG")
-            : "تاريخ غير معروف"
-        )}</span>
+  grid.innerHTML = filtered.map(item => `
+    <article class="template-card">
+      <div class="template-card__top">
+        <span class="template-card__icon">&lt;/&gt;</span>
+        <span class="template-card__badge">
+          ${item.status === "unified" ? "ملف واحد" : "HTML / CSS / JS"}
+        </span>
       </div>
-      <div class="card-actions">
-        <button data-action="preview">معاينة</button>
-        <button data-action="download">تحميل</button>
-        <button class="delete-btn" data-action="delete">حذف</button>
+
+      <h3>${escapeHTML(item.name)}</h3>
+
+      <p>${escapeHTML(item.description || "بدون وصف")}</p>
+
+      <div class="template-card__date">
+        آخر تعديل:
+        ${new Date(item.updatedAt || item.createdAt).toLocaleDateString("ar-EG")}
       </div>
-    `;
 
-    card.querySelector('[data-action="preview"]').addEventListener("click", () => {
-      openPreview(template);
-    });
+      <div class="template-card__actions">
+        <button data-action="preview" data-id="${escapeHTML(item.id)}">
+          معاينة
+        </button>
 
-    card.querySelector('[data-action="download"]').addEventListener("click", () => {
-      downloadTemplate(template);
-    });
+        <button data-action="edit" data-id="${escapeHTML(item.id)}">
+          تعديل
+        </button>
 
-    card.querySelector('[data-action="delete"]').addEventListener("click", () => {
-      if (!confirm("هل تريد حذف هذا القالب؟")) return;
+        <button data-action="download" data-id="${escapeHTML(item.id)}">
+          تحميل
+        </button>
 
-      saveTemplates(getTemplates().filter(item => item.id !== template.id));
-      render();
-    });
-
-    grid.appendChild(card);
-  });
+        <button data-action="delete" data-id="${escapeHTML(item.id)}">
+          حذف
+        </button>
+      </div>
+    </article>
+  `).join("");
 }
 
-$("#searchInput").addEventListener("input", render);
-$("#sortSelect").addEventListener("change", render);
-$("#refreshBtn").addEventListener("click", render);
+function buildDocument(item) {
+  const html = item.html || "";
+  const css = item.css || "";
+  const js = item.js || "";
 
-window.addEventListener("storage", render);
+  if (item.status === "unified") {
+    return html;
+  }
 
-render();
+  return html
+    .replace(
+      /<\/head>/i,
+      `<style>${css.replace(/<\/style/gi, "<\\/style")}</style></head>`
+    )
+    .replace(
+      /<\/body>/i,
+      `<script>${js.replace(/<\/script/gi, "<\\/script")}</script></body>`
+    );
+}
+
+function previewTemplate(item) {
+  const modal = $("#preview");
+  const frame = $("#previewFrame");
+  const title = $("#previewTitle");
+
+  if (!modal || !frame) return;
+
+  if (title) title.textContent = item.name;
+
+  frame.srcdoc = buildDocument(item);
+  modal.style.display = "flex";
+}
+
+function closePreview() {
+  const modal = $("#preview");
+  const frame = $("#previewFrame");
+
+  if (modal) modal.style.display = "none";
+  if (frame) frame.srcdoc = "";
+}
+
+function editTemplate(item) {
+  localStorage.setItem(EDIT_KEY, item.id);
+  window.location.href = "submit.html";
+}
+
+function downloadTemplate(item) {
+  const files = item.status === "unified"
+    ? { "index.html": item.html }
+    : {
+        "index.html": item.html,
+        "style.css": item.css,
+        "script.js": item.js
+      };
+
+  const blob = new Blob(
+    [JSON.stringify(files, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `${item.name.replace(/[^\w\u0600-\u06FF-]/g, "_")}-files.json`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function deleteTemplate(id) {
+  const confirmed = confirm("هل أنت متأكد من حذف هذا القالب؟");
+
+  if (!confirmed) return;
+
+  templates = templates.filter(item => item.id !== id);
+  saveTemplates();
+  renderTemplates();
+}
+
+$("#templatesGrid")?.addEventListener("click", event => {
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
+
+  const item = templates.find(
+    template => template.id === button.dataset.id
+  );
+
+  if (!item) return;
+
+  switch (button.dataset.action) {
+    case "preview":
+      previewTemplate(item);
+      break;
+
+    case "edit":
+      editTemplate(item);
+      break;
+
+    case "download":
+      downloadTemplate(item);
+      break;
+
+    case "delete":
+      deleteTemplate(item.id);
+      break;
+  }
+});
+
+$("#searchInput")?.addEventListener("input", renderTemplates);
+$("#sortSelect")?.addEventListener("change", renderTemplates);
+$("#refreshBtn")?.addEventListener("click", loadTemplates);
+$("#closePreview")?.addEventListener("click", closePreview);
+
+$("#preview")?.addEventListener("click", event => {
+  if (event.target.id === "preview") closePreview();
+});
+
+loadTemplates();
+    
