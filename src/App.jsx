@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import JSZip from 'jszip'
@@ -29,7 +28,6 @@ const defaults = {
   'style.css': `* {
   box-sizing: border-box;
 }
-
 body {
   margin: 0;
   min-height: 100vh;
@@ -127,7 +125,7 @@ export default function App() {
   function createFile() {
     const name = newName.trim()
 
-    if (!name || files[name]) return
+    if (!name || files[name] !== undefined) return
 
     setFiles(prev => ({
       ...prev,
@@ -168,8 +166,9 @@ export default function App() {
     const css = files['style.css'] || ''
     const js = files['script.js'] || ''
 
-    const style = `<style>${css.replace(/<\\/style/gi, '<\\\\/style')}</style>`
-    const script = `<script>${js.replace(/<\\/script/gi, '<\\\\/script')}<\\/script>`
+    // Fixed: safely escape closing tags inside embedded code
+    const style = `<style>${css.replace(/<\/style/gi, '<\\/style')}</style>`
+    const script = `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`
 
     if (html.includes('</head>')) {
       html = html.replace('</head>', style + '</head>')
@@ -193,27 +192,32 @@ export default function App() {
   }
 
   async function exportProject() {
-    const zip = new JSZip()
+    try {
+      const zip = new JSZip()
 
-    Object.entries(files).forEach(([name, content]) => {
-      zip.file(name, content)
-    })
+      Object.entries(files).forEach(([name, content]) => {
+        zip.file(name, content)
+      })
 
-    zip.file(
-      'README.md',
-      '# EVORA CODE Project\n\nCreated with EVORA CODE.\n\n© 2026 WINE 🍷'
-    )
+      zip.file(
+        'README.md',
+        '# EVORA CODE Project\n\nCreated with EVORA CODE.\n\n© 2026 WINE 🍷 — All Rights Reserved.'
+      )
 
-    const blob = await zip.generateAsync({ type: 'blob' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
 
-    link.href = url
-    link.download = 'evora-code-project.zip'
-    link.click()
+      link.href = url
+      link.download = 'evora-code-project.zip'
+      link.click()
 
-    URL.revokeObjectURL(url)
-    setMessage('Project exported')
+      URL.revokeObjectURL(url)
+      setMessage('Project exported')
+    } catch (error) {
+      console.error(error)
+      setMessage('Export failed')
+    }
   }
 
   const width = {
@@ -230,6 +234,7 @@ export default function App() {
           <div className="logo">
             <Code2 />
           </div>
+
           <div>
             <strong>EVORA <span>CODE</span></strong>
             <small>WEB DEVELOPMENT STUDIO</small>
@@ -241,15 +246,15 @@ export default function App() {
             localStorage.setItem('evora-files', JSON.stringify(files))
             setMessage('Saved locally')
           }}>
-            <Save size={15}/> Save
+            <Save size={15} /> Save
           </button>
 
           <button className="run" onClick={runProject}>
-            <Play size={15}/> Run
+            <Play size={15} /> Run
           </button>
 
           <button onClick={exportProject}>
-            <Download size={15}/> Export
+            <Download size={15} /> Export
           </button>
         </div>
       </header>
@@ -259,8 +264,9 @@ export default function App() {
         <aside className="sidebar">
           <div className="side-title">
             EXPLORER
+
             <button onClick={() => setAdding(true)}>
-              <Plus size={16}/>
+              <Plus size={16} />
             </button>
           </div>
 
@@ -274,7 +280,8 @@ export default function App() {
               className={`file ${active === name ? 'selected' : ''}`}
               onClick={() => openFile(name)}
             >
-              <FileCode size={15}/>
+              <FileCode size={15} />
+
               {name}
 
               <button
@@ -283,7 +290,7 @@ export default function App() {
                   deleteFile(name)
                 }}
               >
-                <Trash2 size={13}/>
+                <Trash2 size={13} />
               </button>
             </div>
           ))}
@@ -297,6 +304,7 @@ export default function App() {
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && createFile()}
               />
+
               <button onClick={createFile}>✓</button>
               <button onClick={() => setAdding(false)}>×</button>
             </div>
@@ -312,13 +320,15 @@ export default function App() {
                 className={`tab ${active === name ? 'active' : ''}`}
                 onClick={() => setActive(name)}
               >
-                <FileCode size={14}/>
+                <FileCode size={14} />
+
                 {name}
+
                 <button onClick={e => {
                   e.stopPropagation()
                   closeTab(name)
                 }}>
-                  <X size={13}/>
+                  <X size={13} />
                 </button>
               </div>
             ))}
@@ -345,7 +355,7 @@ export default function App() {
               />
             ) : (
               <div className="welcome">
-                <Code2 size={40}/>
+                <Code2 size={40} />
                 <h2>EVORA CODE</h2>
                 <p>Open a file to start coding.</p>
               </div>
@@ -359,14 +369,14 @@ export default function App() {
                 className={panel === 'preview' ? 'chosen' : ''}
                 onClick={() => setPanel('preview')}
               >
-                <Eye size={14}/> Preview
+                <Eye size={14} /> Preview
               </button>
 
               <button
                 className={panel === 'output' ? 'chosen' : ''}
                 onClick={() => setPanel('output')}
               >
-                <Terminal size={14}/> Output
+                <Terminal size={14} /> Output
               </button>
             </div>
 
@@ -374,17 +384,19 @@ export default function App() {
               <>
                 <div className="preview-tools">
                   <button onClick={() => setDevice('desktop')}>
-                    <Monitor size={15}/>
+                    <Monitor size={15} />
                   </button>
+
                   <button onClick={() => setDevice('tablet')}>
-                    <Tablet size={15}/>
+                    <Tablet size={15} />
                   </button>
+
                   <button onClick={() => setDevice('mobile')}>
-                    <Smartphone size={15}/>
+                    <Smartphone size={15} />
                   </button>
 
                   <button onClick={runProject}>
-                    <Play size={14}/> Refresh
+                    <Play size={14} /> Refresh
                   </button>
                 </div>
 
@@ -401,11 +413,10 @@ export default function App() {
             ) : (
               <div className="output">
                 EVORA CODE environment ready.
-                <br/>
+                <br />
                 {message}
               </div>
             )}
-
           </section>
 
         </main>
@@ -414,9 +425,9 @@ export default function App() {
       <footer className="status">
         <span>● Ready</span>
         <span>{message}</span>
-        <span>© 2026 WINE 🍷</span>
+        <span>© 2026 WINE 🍷 — All Rights Reserved.</span>
       </footer>
 
     </div>
   )
-}
+        }
