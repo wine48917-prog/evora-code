@@ -1,713 +1,697 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import Editor from '@monaco-editor/react'
-import JSZip from 'jszip'
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import JSZip from "jszip";
 import {
-  Code2, Play, Save, Download, Plus, X,
-  FileCode, Eye, Terminal, Monitor, Smartphone,
-  Tablet, Trash2, ExternalLink, ArrowLeft,
-  RefreshCw, FolderOpen, Menu, Check
-} from 'lucide-react'
+  Code2,
+  Play,
+  Save,
+  Download,
+  Plus,
+  Trash2,
+  Folder,
+  FileCode2,
+  Eye,
+  Monitor,
+  Smartphone,
+  Tablet,
+  RefreshCw,
+  Menu,
+  X,
+  Palette,
+  ExternalLink,
+  ChevronDown
+} from "lucide-react";
 
-const STORAGE_KEY = 'evora-files'
+import CodeEditor from "./CodeEditor.jsx";
 
-const defaults = {
-  'index.html': `<!DOCTYPE html>
-<html lang="en">
+const STORAGE_KEY = "evora-code-v2-files";
+const THEME_KEY = "evora-code-v2-theme";
+
+const initialFiles = {
+  "index.html": `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My EVORA Website</title>
-  <link rel="stylesheet" href="style.css">
+  <title>My EVORA Project</title>
 </head>
 <body>
-  <main class="hero">
-    <span class="tag">WELCOME TO EVORA</span>
-    <h1>Build Something <b>Great.</b></h1>
-    <p>Your next project starts here.</p>
-    <button id="start">Get Started</button>
+  <main class="container">
+    <h1>مرحباً بك في EVORA CODE 🍷</h1>
+    <p>ابدأ ببناء موقعك الأول.</p>
+    <button onclick="showMessage()">اضغط هنا</button>
   </main>
-  <script src="script.js"></script>
 </body>
 </html>`,
-
-  'style.css': `* {
+  "style.css": `* {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
   font-family: Arial, sans-serif;
-  color: white;
-  background: #100b0e;
+  background: #f5f5f5;
+  color: #222;
 }
 
-.hero {
+.container {
+  max-width: 800px;
+  margin: 80px auto;
+  padding: 30px;
   text-align: center;
-  padding: 40px;
-}
-
-.tag {
-  color: #d46b8b;
-  letter-spacing: 4px;
-}
-
-h1 {
-  font-size: clamp(35px, 7vw, 70px);
-}
-
-h1 b {
-  color: #c84e76;
-}
-
-p {
-  color: #bbaab2;
 }
 
 button {
-  padding: 14px 25px;
   border: 0;
+  padding: 12px 24px;
   border-radius: 8px;
+  background: #713d58;
   color: white;
-  background: #922d50;
   cursor: pointer;
 }`,
+  "script.js": `function showMessage() {
+  alert("Your project is running with EVORA CODE!");
+}`,
+  "data.json": `{
+  "name": "EVORA CODE",
+  "version": "2.0"
+}`
+};
 
-  'script.js': `document.querySelector('#start')
-  ?.addEventListener('click', () => {
-    alert('Welcome to EVORA CODE!')
-  })`
+const languageFromName = (name = "") => {
+  const ext = name.split(".").pop().toLowerCase();
+
+  if (ext === "html" || ext === "htm") return "html";
+  if (ext === "css") return "css";
+  if (["js", "jsx", "mjs"].includes(ext)) return "javascript";
+  if (ext === "json") return "json";
+
+  return "html";
+};
+
+function readSavedFiles() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return initialFiles;
+
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === "object" ? parsed : initialFiles;
+  } catch {
+    return initialFiles;
+  }
 }
 
-function getLanguage(name = '') {
-  const ext = name.split('.').pop().toLowerCase()
-  const languages = {
-    html: 'html',
-    htm: 'html',
-    css: 'css',
-    js: 'javascript',
-    jsx: 'javascript',
-    ts: 'typescript',
-    tsx: 'typescript',
-    json: 'json',
-    md: 'markdown',
-    xml: 'xml',
-    svg: 'xml',
-    scss: 'scss',
-    less: 'less',
-    php: 'php',
-    py: 'python',
-    sql: 'sql',
-    yaml: 'yaml',
-    yml: 'yaml'
-  }
-  return languages[ext] || 'plaintext'
-}
+function makePage(files, pageName = "index.html") {
+  const htmlFile =
+    files[pageName] !== undefined
+      ? files[pageName]
+      : files["index.html"] || "<h1>EVORA CODE</h1>";
 
-function makePage(files, pageName = 'index.html') {
-  const page = files[pageName] ?? files['index.html'] ?? '<h1>Welcome</h1>'
-  let html = page
+  const cssCode = files["style.css"] || "";
+  const jsCode = files["script.js"] || "";
 
-  const css = files['style.css'] || ''
-  const js = files['script.js'] || ''
+  const safeCss = cssCode.replace(/<\/style/gi, "<\\/style");
+  const safeJs = jsCode.replace(/<\/script/gi, "<\\/script");
 
-  const styleTag =
-    `<style>${css.replace(/<\/style/gi, '<\\/style')}</style>`
+  let page = htmlFile;
 
-  const scriptTag =
-    `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`
+  page = page.replace(
+    /<link\b[^>]*href=["']style\.css["'][^>]*>/gi,
+    ""
+  );
 
-  // Use project CSS and JS directly from the editor.
-  html = html.replace(
-    /<link\b[^>]*href=["'](?:\.\/)?style\.css["'][^>]*>/gi,
-    ''
-  )
+  page = page.replace(
+    /<script\b[^>]*src=["']script\.js["'][^>]*>\s*<\/script>/gi,
+    ""
+  );
 
-  html = html.replace(
-    /<script\b[^>]*src=["'](?:\.\/)?script\.js["'][^>]*>\s*<\/script>/gi,
-    ''
-  )
+  const styleTag = `<style>${safeCss}</style>`;
+  const scriptTag = `<script>${safeJs}<\/script>`;
 
-  const routes = JSON.stringify(
-    Object.keys(files).filter(name => /\.html?$/i.test(name))
-  )
-
-  const navigationScript = `
-<script>
-(function () {
-  const projectPages = ${routes};
-  document.addEventListener('click', function (event) {
-    const link = event.target.closest('a');
-    if (!link) return;
-
-    const href = link.getAttribute('href');
-    if (!href || /^(https?:|mailto:|tel:|#|data:|javascript:)/i.test(href)) return;
-
-    const target = href.split(/[?#]/)[0].replace(/^\\.\\//, '');
-    if (projectPages.includes(target)) {
-      event.preventDefault();
-      parent.postMessage({ type: 'EVORA_NAV', page: target }, '*');
-    }
-  });
-})();
-</script>`
-
-  if (/<\/head>/i.test(html)) {
-    html = html.replace(/<\/head>/i, `${styleTag}</head>`)
+  if (/<\/head>/i.test(page)) {
+    page = page.replace(/<\/head>/i, `${styleTag}</head>`);
   } else {
-    html = `${styleTag}${html}`
+    page = `${styleTag}${page}`;
   }
 
-  if (/<\/body>/i.test(html)) {
-    html = html.replace(
-      /<\/body>/i,
-      `${scriptTag}${navigationScript}</body>`
-    )
+  if (/<\/body>/i.test(page)) {
+    page = page.replace(/<\/body>/i, `${scriptTag}</body>`);
   } else {
-    html += scriptTag + navigationScript
+    page += scriptTag;
   }
 
-  return html
+  return page;
 }
 
 function Runner() {
-  const [files, setFiles] = useState({})
-  const [page, setPage] = useState('index.html')
-  const [ready, setReady] = useState(false)
-  const frameRef = useRef(null)
+  const [files, setFiles] = useState({});
+  const [page, setPage] = useState("index.html");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-      setFiles(saved && Object.keys(saved).length ? saved : defaults)
-    } catch {
-      setFiles(defaults)
-    }
-    setReady(true)
-  }, [])
+    setFiles(readSavedFiles());
+  }, []);
 
-  useEffect(() => {
-    function handleMessage(event) {
-      if (event.source !== frameRef.current?.contentWindow) return
-      if (event.data?.type !== 'EVORA_NAV') return
+  const htmlFiles = Object.keys(files).filter((name) =>
+    /\.(html|htm)$/i.test(name)
+  );
 
-      const target = event.data.page
-      if (files[target] !== undefined) {
-        setPage(target)
-      }
-    }
+  const currentPage = htmlFiles.includes(page)
+    ? page
+    : htmlFiles[0] || "index.html";
 
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [files])
-
-  const pageContent = useMemo(
-    () => makePage(files, page),
-    [files, page]
-  )
-
-  if (!ready) {
-    return <div className="runner-loading">Loading your website...</div>
-  }
+  const srcDoc = useMemo(
+    () => makePage(files, currentPage),
+    [files, currentPage, refreshKey]
+  );
 
   return (
-    <div className="runner">
-      <div className="runner-bar">
-        <button onClick={() => window.close()} title="Close preview">
-          <ArrowLeft size={17} />
-        </button>
-
-        <div className="runner-address">
-          <span className="runner-dot" />
-          <span>{page}</span>
-        </div>
-
+    <div className="runner-page">
+      <header className="runner-topbar">
         <button
-          onClick={() => setPage('index.html')}
-          title="Go to home page"
-        >
-          <RefreshCw size={16} />
-        </button>
-
-        <button
-          onClick={() => window.location.href = '/'}
+          className="icon-btn"
+          onClick={() => window.location.href = window.location.pathname}
           title="Back to editor"
         >
-          <Code2 size={17} />
+          <Code2 size={18} />
         </button>
-      </div>
 
-      <iframe
-        ref={frameRef}
-        key={page}
-        className="runner-frame"
-        title="Your EVORA website"
-        srcDoc={pageContent}
-        sandbox="allow-scripts allow-forms allow-modals allow-popups"
-      />
+        <div className="runner-brand">
+          <span className="logo">{"</>"}</span>
+          <strong>EVORA CODE</strong>
+          <small>LIVE PREVIEW</small>
+        </div>
+
+        <div className="runner-controls">
+          <select
+            value={currentPage}
+            onChange={(e) => setPage(e.target.value)}
+          >
+            {htmlFiles.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+
+          <button
+            className="primary-btn"
+            onClick={() => setRefreshKey((v) => v + 1)}
+          >
+            <RefreshCw size={15} />
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <main className="runner-content">
+        <iframe
+          key={currentPage}
+          title="EVORA Project Preview"
+          srcDoc={srcDoc}
+          sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"
+        />
+      </main>
+
+      <footer className="runner-footer">
+        <span>DEV BY VELOR</span>
+        <span>© 2026 WINE 🍷 — All Rights Reserved.</span>
+      </footer>
     </div>
-  )
-}
-
-export default function App() {
-  if (new URLSearchParams(window.location.search).has('evora-run')) {
-    return <Runner />
-  }
-
-  return <Workspace />
+  );
 }
 
 function Workspace() {
-  const [files, setFiles] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-      return Object.keys(saved).length ? saved : defaults
-    } catch {
-      return defaults
-    }
-  })
+  const [files, setFiles] = useState(readSavedFiles);
+  const [activeFile, setActiveFile] = useState("index.html");
+  const [openFiles, setOpenFiles] = useState(["index.html", "style.css", "script.js"]);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem(THEME_KEY) || "dark";
+  });
 
-  const [active, setActive] = useState('index.html')
-  const [tabs, setTabs] = useState(['index.html', 'style.css', 'script.js'])
-  const [device, setDevice] = useState('desktop')
-  const [panel, setPanel] = useState('preview')
-  const [mobileView, setMobileView] = useState('editor')
-  const [newName, setNewName] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [showFiles, setShowFiles] = useState(false)
-  const [refresh, setRefresh] = useState(0)
-  const [message, setMessage] = useState('Ready')
-  const [saved, setSaved] = useState(true)
-
-  const editorRef = useRef(null)
+  const [previewMode, setPreviewMode] = useState("desktop");
+  const [showPreview, setShowPreview] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showMobilePanel, setShowMobilePanel] = useState("editor");
+  const [output, setOutput] = useState("Welcome to EVORA CODE V2.");
+  const [lastSaved, setLastSaved] = useState("Saved locally");
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(files))
-    setSaved(true)
-  }, [files])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+    setLastSaved("Saved locally");
+  }, [files]);
 
-  const previewHTML = useMemo(
-    () => makePage(files, 'index.html'),
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  const activeLanguage = languageFromName(activeFile);
+
+  const htmlFiles = useMemo(
+    () => Object.keys(files).filter((name) => /\.(html|htm)$/i.test(name)),
     [files]
-  )
+  );
 
-  function updateCode(value) {
-    setFiles(prev => ({
-      ...prev,
-      [active]: value ?? ''
-    }))
-    setSaved(false)
-  }
+  const previewHtml = useMemo(
+    () => makePage(files, htmlFiles.includes(activeFile) ? activeFile : "index.html"),
+    [files, activeFile, htmlFiles]
+  );
+
+  const updateCode = useCallback((value) => {
+    setFiles((old) => ({
+      ...old,
+      [activeFile]: value
+    }));
+    setLastSaved("Saving...");
+  }, [activeFile]);
 
   function openFile(name) {
-    setActive(name)
-    setTabs(prev => prev.includes(name) ? prev : [...prev, name])
-    setShowFiles(false)
-    setMobileView('editor')
-  }
-
-  function createFile() {
-    const name = newName.trim()
-
-    if (!name) return
-    if (files[name] !== undefined) {
-      setMessage('This file already exists')
-      return
-    }
-
-    setFiles(prev => ({ ...prev, [name]: '' }))
-    setTabs(prev => [...prev, name])
-    setActive(name)
-    setNewName('')
-    setAdding(false)
-    setShowFiles(false)
-    setMobileView('editor')
-  }
-
-  function deleteFile(name) {
-    if (Object.keys(files).length <= 1) {
-      setMessage('At least one file is required')
-      return
-    }
-
-    if (!window.confirm(`Delete ${name}?`)) return
-
-    const next = { ...files }
-    delete next[name]
-
-    setFiles(next)
-    setTabs(prev => prev.filter(item => item !== name))
-
-    if (active === name) {
-      const nextName = Object.keys(next)[0]
-      setActive(nextName)
-    }
-
-    setMessage(`${name} deleted`)
+    setActiveFile(name);
+    setOpenFiles((old) =>
+      old.includes(name) ? old : [...old, name]
+    );
+    setShowSidebar(false);
+    setShowMobilePanel("editor");
   }
 
   function closeTab(name) {
-    const next = tabs.filter(item => item !== name)
-    setTabs(next)
+    const next = openFiles.filter((file) => file !== name);
+    setOpenFiles(next);
 
-    if (active === name) {
-      setActive(next[next.length - 1] || '')
+    if (activeFile === name && next.length) {
+      setActiveFile(next[next.length - 1]);
+    } else if (activeFile === name) {
+      setActiveFile("");
     }
+  }
+
+  function createFile() {
+    const name = window.prompt("Enter file name (example: about.html)");
+    if (!name) return;
+
+    const cleanName = name.trim();
+
+    if (!/^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$/.test(cleanName)) {
+      alert("Please enter a valid file name with extension.");
+      return;
+    }
+
+    if (files[cleanName] !== undefined) {
+      alert("This file already exists.");
+      return;
+    }
+
+    setFiles((old) => ({
+      ...old,
+      [cleanName]: ""
+    }));
+
+    openFile(cleanName);
+    setOutput(`Created file: ${cleanName}`);
+  }
+
+  function deleteFile(name) {
+    if (!window.confirm(`Delete ${name}?`)) return;
+
+    const next = { ...files };
+    delete next[name];
+
+    setFiles(next);
+    setOpenFiles((old) => old.filter((file) => file !== name));
+
+    if (activeFile === name) {
+      const remaining = Object.keys(next);
+      setActiveFile(remaining[0] || "");
+    }
+
+    setOutput(`Deleted file: ${name}`);
   }
 
   function saveProject() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(files))
-    setSaved(true)
-    setMessage('Project saved')
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+    setLastSaved("Saved successfully");
+    setOutput("Project saved locally.");
   }
 
   function runProject() {
-    try {
-      // Save before opening the independent website view.
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(files))
-
-      const url = `${window.location.origin}/?evora-run=1`
-      const opened = window.open(url, '_blank')
-
-      if (!opened) {
-        setMessage('Allow pop-ups to run your website')
-        return
-      }
-
-      setMessage('Website opened in a new tab')
-    } catch (error) {
-      console.error(error)
-      setMessage('Could not launch website')
+    if (!htmlFiles.length) {
+      alert("Create an HTML file first.");
+      return;
     }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+
+    const url = `${window.location.origin}${window.location.pathname}?evora-run=1`;
+    const opened = window.open(url, "_blank");
+
+    if (!opened) {
+      setOutput("Popup blocked. Allow popups to open your project.");
+      alert("Allow popups in your browser, then try Run again.");
+      return;
+    }
+
+    setOutput("Project opened in a separate preview page.");
   }
 
   function refreshPreview() {
-    setRefresh(value => value + 1)
-    setMessage('Preview refreshed')
+    setShowPreview(false);
+    requestAnimationFrame(() => setShowPreview(true));
   }
 
   async function exportProject() {
     try {
-      const zip = new JSZip()
+      const zip = new JSZip();
 
       Object.entries(files).forEach(([name, content]) => {
-        zip.file(name, content)
-      })
+        zip.file(name, content);
+      });
 
-      zip.file(
-        'README.md',
-        '# EVORA CODE Project\n\nCreated with EVORA CODE.\n\n© 2026 WINE 🍷 — All Rights Reserved.'
-      )
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-      const blob = await zip.generateAsync({ type: 'blob' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
+      link.href = url;
+      link.download = "evora-project.zip";
+      link.click();
 
-      link.href = url
-      link.download = 'evora-code-project.zip'
-      link.click()
-
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      setMessage('Project exported')
+      URL.revokeObjectURL(url);
+      setOutput("Project exported as ZIP.");
     } catch (error) {
-      console.error(error)
-      setMessage('Export failed')
+      console.error(error);
+      setOutput("Could not export project.");
     }
   }
 
-  const deviceWidth = {
-    desktop: '100%',
-    tablet: '768px',
-    mobile: '390px'
-  }[device]
+  const themeOptions = [
+    { id: "dark", label: "Dark" },
+    { id: "light", label: "Light" }
+  ];
 
   return (
-    <div className="app">
+    <div className={`app evora-app theme-${theme}`}>
+      <div className="dev-credit">DEV BY VELOR</div>
 
       <header className="topbar">
+        <button
+          className="mobile-menu icon-btn"
+          onClick={() => setShowSidebar((v) => !v)}
+          aria-label="Toggle files"
+        >
+          {showSidebar ? <X size={19} /> : <Menu size={19} />}
+        </button>
+
         <div className="brand">
-          <div className="logo"><Code2 size={21} /></div>
-          <div className="brand-copy">
-            <strong>EVORA <span>CODE</span></strong>
+          <div className="logo"><Code2 size={23} /></div>
+          <div className="brand-text">
+            <strong>EVORA CODE</strong>
             <small>WEB DEVELOPMENT STUDIO</small>
           </div>
         </div>
 
-        <div className="top-actions">
-          <button className="action-button save-button" onClick={saveProject}>
-            <Save size={15} />
+        <div className="actions">
+          <div className="theme-picker">
+            <button
+              className="secondary-btn"
+              onClick={() => setShowThemeMenu((v) => !v)}
+            >
+              <Palette size={16} />
+              Theme
+              <ChevronDown size={13} />
+            </button>
+
+            {showThemeMenu && (
+              <div className="theme-menu">
+                {themeOptions.map((item) => (
+                  <button
+                    key={item.id}
+                    className={theme === item.id ? "selected" : ""}
+                    onClick={() => {
+                      setTheme(item.id);
+                      setShowThemeMenu(false);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button className="secondary-btn save-btn" onClick={saveProject}>
+            <Save size={16} />
             <span>Save</span>
           </button>
 
-          <button className="action-button run-button" onClick={runProject}>
-            <Play size={15} fill="currentColor" />
-            <span>Run</span>
+          <button className="secondary-btn export-btn" onClick={exportProject}>
+            <Download size={16} />
+            <span>Export</span>
           </button>
 
-          <button className="action-button export-button" onClick={exportProject}>
-            <Download size={15} />
-            <span>Export</span>
+          <button className="primary-btn run-btn" onClick={runProject}>
+            <Play size={16} fill="currentColor" />
+            Run
           </button>
         </div>
       </header>
 
       <div className="mobile-toolbar">
         <button
-          className={mobileView === 'files' ? 'mobile-active' : ''}
-          onClick={() => setShowFiles(!showFiles)}
+          className={showMobilePanel === "files" ? "active" : ""}
+          onClick={() => setShowSidebar((v) => !v)}
         >
-          <FolderOpen size={17} />
-          Files
+          <Folder size={16} /> Files
         </button>
 
         <button
-          className={mobileView === 'editor' ? 'mobile-active' : ''}
-          onClick={() => {
-            setShowFiles(false)
-            setMobileView('editor')
-          }}
+          className={showMobilePanel === "editor" ? "active" : ""}
+          onClick={() => setShowMobilePanel("editor")}
         >
-          <Code2 size={17} />
-          Editor
+          <Code2 size={16} /> Editor
         </button>
 
         <button
-          className={mobileView === 'preview' ? 'mobile-active' : ''}
-          onClick={() => {
-            setShowFiles(false)
-            setMobileView('preview')
-            setPanel('preview')
-          }}
+          className={showMobilePanel === "preview" ? "active" : ""}
+          onClick={() => setShowMobilePanel("preview")}
         >
-          <Eye size={17} />
-          Preview
+          <Eye size={16} /> Preview
         </button>
 
         <button onClick={runProject}>
-          <Play size={17} />
-          Run
+          <Play size={16} /> Run
         </button>
       </div>
 
-      <div className="workspace">
-
-        <aside className={`sidebar ${showFiles ? 'sidebar-open' : ''}`}>
+      <main className="workspace">
+        <aside className={`sidebar ${showSidebar ? "sidebar-open" : ""}`}>
           <div className="side-title">
             <span>EXPLORER</span>
-            <button
-              title="New file"
-              onClick={() => setAdding(true)}
-            >
+            <button className="icon-btn" onClick={createFile} title="New file">
               <Plus size={17} />
             </button>
           </div>
 
           <div className="project-name">
-            <span>▾</span> EVORA PROJECT
+            <ChevronDown size={14} />
+            <Folder size={15} />
+            EVORA PROJECT
           </div>
 
-          {Object.keys(files).map(name => (
-            <div
-              key={name}
-              className={`file ${active === name ? 'selected' : ''}`}
-              onClick={() => openFile(name)}
-            >
-              <FileCode size={15} />
-              <span className="file-name">{name}</span>
-              <button
-                title={`Delete ${name}`}
-                onClick={event => {
-                  event.stopPropagation()
-                  deleteFile(name)
-                }}
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-
-          {adding && (
-            <div className="new-file">
-              <input
-                autoFocus
-                placeholder="filename.html"
-                value={newName}
-                onChange={event => setNewName(event.target.value)}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') createFile()
-                  if (event.key === 'Escape') setAdding(false)
-                }}
-              />
-              <button onClick={createFile}><Check size={14} /></button>
-              <button onClick={() => setAdding(false)}><X size={14} /></button>
-            </div>
-          )}
-
-          <div className="sidebar-bottom">
-            <span className="sidebar-status-dot" />
-            Local project
-          </div>
-        </aside>
-
-        {showFiles && (
-          <button
-            className="mobile-backdrop"
-            aria-label="Close files"
-            onClick={() => setShowFiles(false)}
-          />
-        )}
-
-        <main className="main">
-
-          <div className="tabs">
-            {tabs.map(name => (
+          <div className="file-list">
+            {Object.keys(files).map((name) => (
               <div
                 key={name}
-                className={`tab ${active === name ? 'active' : ''}`}
-                onClick={() => {
-                  setActive(name)
-                  setMobileView('editor')
-                }}
+                className={`file ${activeFile === name ? "active" : ""}`}
               >
-                <FileCode size={14} />
-                <span>{name}</span>
                 <button
-                  title="Close tab"
-                  onClick={event => {
-                    event.stopPropagation()
-                    closeTab(name)
-                  }}
+                  className="file-open"
+                  onClick={() => openFile(name)}
                 >
-                  <X size={13} />
+                  <FileCode2 size={15} />
+                  <span>{name}</span>
+                </button>
+
+                <button
+                  className="file-delete"
+                  onClick={() => deleteFile(name)}
+                  title="Delete file"
+                >
+                  <Trash2 size={13} />
                 </button>
               </div>
             ))}
           </div>
 
-          <section className={`editor-area ${mobileView !== 'editor' ? 'mobile-hidden' : ''}`}>
-            {active && files[active] !== undefined ? (
-              <Editor
-                height="100%"
-                theme="vs-dark"
-                path={active}
-                language={getLanguage(active)}
-                value={files[active]}
-                onChange={updateCode}
-                onMount={editor => { editorRef.current = editor }}
-                options={{
-                  fontSize: 14,
-                  minimap: { enabled: true },
-                  automaticLayout: true,
-                  wordWrap: 'on',
-                  scrollBeyondLastLine: false,
-                  smoothScrolling: true,
-                  tabSize: 2,
-                  padding: { top: 14 },
-                  fontFamily: 'Consolas, "Courier New", monospace',
-                  bracketPairColorization: { enabled: true },
-                  autoClosingBrackets: 'always',
-                  autoClosingQuotes: 'always',
-                  formatOnPaste: true,
-                  formatOnType: true
-                }}
-              />
-            ) : (
-              <div className="welcome">
-                <Code2 size={42} />
-                <h2>EVORA CODE</h2>
-                <p>Open a file to start coding.</p>
-              </div>
-            )}
-          </section>
+          <button className="new-file" onClick={createFile}>
+            <Plus size={15} /> New File
+          </button>
 
-          <section className={`bottom ${mobileView !== 'preview' ? 'mobile-hidden' : ''}`}>
-            <div className="panel-header">
-              <div className="panel-tabs">
-                <button
-                  className={panel === 'preview' ? 'chosen' : ''}
-                  onClick={() => setPanel('preview')}
+          <div className="sidebar-bottom">
+            <div className="sidebar-version">EVORA CODE V2.0</div>
+            <div>© WINE 🍷</div>
+          </div>
+        </aside>
+
+        <section className="main">
+          <div className="tabs">
+            <div className="tab-list">
+              {openFiles.map((name) => (
+                <div
+                  key={name}
+                  className={`tab ${activeFile === name ? "active" : ""}`}
                 >
-                  <Eye size={14} /> Preview
-                </button>
-
-                <button
-                  className={panel === 'output' ? 'chosen' : ''}
-                  onClick={() => setPanel('output')}
-                >
-                  <Terminal size={14} /> Output
-                </button>
-              </div>
-
-              {panel === 'preview' && (
-                <div className="preview-tools">
+                  <button onClick={() => openFile(name)}>
+                    <FileCode2 size={14} />
+                    {name}
+                  </button>
                   <button
-                    className={device === 'desktop' ? 'device-active' : ''}
-                    title="Desktop"
-                    onClick={() => setDevice('desktop')}
+                    className="tab-close"
+                    onClick={() => closeTab(name)}
+                    aria-label={`Close ${name}`}
                   >
-                    <Monitor size={15} />
-                  </button>
-
-                  <button
-                    className={device === 'tablet' ? 'device-active' : ''}
-                    title="Tablet"
-                    onClick={() => setDevice('tablet')}
-                  >
-                    <Tablet size={15} />
-                  </button>
-
-                  <button
-                    className={device === 'mobile' ? 'device-active' : ''}
-                    title="Mobile"
-                    onClick={() => setDevice('mobile')}
-                  >
-                    <Smartphone size={15} />
-                  </button>
-
-                  <button onClick={refreshPreview} title="Refresh preview">
-                    <RefreshCw size={14} />
-                  </button>
-
-                  <button onClick={runProject} title="Open website">
-                    <ExternalLink size={14} />
+                    <X size={13} />
                   </button>
                 </div>
-              )}
+              ))}
             </div>
 
-            {panel === 'preview' ? (
-              <div className="preview">
-                <iframe
-                  key={refresh}
-                  title="EVORA Live Preview"
-                  srcDoc={previewHTML}
-                  sandbox="allow-scripts allow-modals allow-forms allow-popups"
-                  style={{ width: deviceWidth }}
+            <div className="editor-actions">
+              <span>{activeLanguage.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div className="mobile-editor-view" style={{
+            display: showMobilePanel === "editor" ? "flex" : "none"
+          }}>
+            {activeFile ? (
+              <div className="editor">
+                <CodeEditor
+                  key={activeFile}
+                  height="100%"
+                  language={activeLanguage}
+                  value={files[activeFile] || ""}
+                  onChange={updateCode}
+                  theme={theme}
+                  options={{
+                    lineNumbers: true,
+                    wordWrap: "on"
+                  }}
                 />
               </div>
             ) : (
-              <div className="output">
-                <p><span className="output-success">●</span> EVORA CODE environment ready.</p>
-                <p>{message}</p>
-                <p>{saved ? 'All changes saved locally.' : 'Saving project...'}</p>
+              <div className="welcome">
+                <Code2 size={45} />
+                <h2>EVORA CODE</h2>
+                <p>Select a file or create a new one to start coding.</p>
+                <button className="primary-btn" onClick={createFile}>
+                  <Plus size={16} /> Create File
+                </button>
+              </div>
+            )}
+          </div>
+
+          <section
+            className="preview-section"
+            style={{
+              display: showMobilePanel === "preview" ? "flex" : undefined
+            }}
+          >
+            <div className="preview-header">
+              <div className="preview-title">
+                <Eye size={16} />
+                LIVE PREVIEW
+              </div>
+
+              <div className="preview-tools">
+                <button
+                  className={previewMode === "desktop" ? "active" : ""}
+                  onClick={() => setPreviewMode("desktop")}
+                  title="Desktop"
+                >
+                  <Monitor size={15} />
+                </button>
+
+                <button
+                  className={previewMode === "tablet" ? "active" : ""}
+                  onClick={() => setPreviewMode("tablet")}
+                  title="Tablet"
+                >
+                  <Tablet size={15} />
+                </button>
+
+                <button
+                  className={previewMode === "mobile" ? "active" : ""}
+                  onClick={() => setPreviewMode("mobile")}
+                  title="Mobile"
+                >
+                  <Smartphone size={15} />
+                </button>
+
+                <button onClick={refreshPreview} title="Refresh preview">
+                  <RefreshCw size={15} />
+                </button>
+
+                <button
+                  onClick={() => setShowPreview((v) => !v)}
+                  title="Toggle preview"
+                >
+                  <ExternalLink size={15} />
+                </button>
+              </div>
+            </div>
+
+            {showPreview && (
+              <div className="preview-frame-wrap">
+                <iframe
+                  key={previewHtml}
+                  title="EVORA Live Preview"
+                  className={`preview-frame preview-${previewMode}`}
+                  srcDoc={previewHtml}
+                  sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                />
+              </div>
+            )}
+
+            {!showPreview && (
+              <div className="preview-placeholder">
+                <Eye size={25} />
+                <p>Preview is hidden</p>
+                <button
+                  className="secondary-btn"
+                  onClick={() => setShowPreview(true)}
+                >
+                  Show Preview
+                </button>
               </div>
             )}
           </section>
 
-        </main>
-      </div>
+          <div className="bottom">
+            <div className="panel-tabs">
+              <span className="active">OUTPUT</span>
+              <span>PROBLEMS</span>
+            </div>
+            <div className="output">{output}</div>
+          </div>
 
-      <footer className="status">
-        <div className="status-left">
-          <span><span className="status-dot" /> Ready</span>
-          <span>{saved ? 'Saved' : 'Modified'}</span>
-        </div>
-        <span className="status-message">{message}</span>
-        <span className="copyright">© 2026 WINE 🍷 — All Rights Reserved.</span>
+          <footer className="status">
+            <span>EVORA CODE</span>
+            <span>{activeLanguage.toUpperCase()}</span>
+            <span>{lastSaved}</span>
+            <span>DEV BY VELOR</span>
+          </footer>
+        </section>
+      </main>
+
+      <footer className="app-footer">
+        <span>DEV BY VELOR</span>
+        <span>© 2026 WINE 🍷 — All Rights Reserved.</span>
       </footer>
-
     </div>
-  )
+  );
 }
+
+export default function App() {
+  const isRunner = new URLSearchParams(window.location.search).has("evora-run");
+
+  return isRunner ? <Runner /> : <Workspace />;
+                  }
+                  
