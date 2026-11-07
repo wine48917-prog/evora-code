@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVORA CODE — نشر قالب</title>
+  <link rel="stylesheet" href="submit.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="brand">
+    <span class="logo">&lt;/&gt;</span>
+    <span>EVORA CODE</span>
+  </a>
+  <span class="dev">DEV BY VELOR</span>
+</header>
+
+<main class="container">
+  <div class="heading">
+    <h1>نشر قالب جديد</h1>
+    <p>شارك مشروعك البرمجي مع مجتمع EVORA.</p>
+  </div>
+
+  <form id="submitForm">
+
+    <section class="details">
+      <label>اسم القالب</label>
+      <div id="nameField">
+        <input id="templateName" maxlength="100"
+          placeholder="مثال: موقع شخصي احترافي" required>
+        <small data-error></small>
+      </div>
+
+      <label>وصف القالب</label>
+      <textarea id="description" maxlength="500"
+        placeholder="اكتب وصفاً مختصراً عن مشروعك..."></textarea>
+      <small><span id="descCount">0</span>/500</small>
+
+      <label>طريقة كتابة القالب</label>
+      <div class="modes">
+        <label><input type="radio" name="status" value="split" checked> ملفات منفصلة</label>
+        <label><input type="radio" name="status" value="unified"> ملف HTML واحد</label>
+      </div>
+    </section>
+
+    <section class="editor-card">
+      <div class="editor-header">
+        <strong>محرر الأكواد</strong>
+        <span id="linesCount">0 سطر</span>
+      </div>
+
+      <div class="tabs">
+        <button type="button" class="code-editor__tab is-active" data-tab="html">HTML</button>
+        <button type="button" class="code-editor__tab" data-tab="css" data-split-only>CSS</button>
+        <button type="button" class="code-editor__tab" data-tab="js" data-split-only>JS</button>
+      </div>
+
+      <input id="htmlFileName" value="index.html" hidden>
+      <input id="cssFileName" value="style.css" hidden>
+      <input id="jsFileName" value="script.js" hidden>
+
+      <div class="code-editor__pane is-active" id="paneHtml" data-pane="html"></div>
+      <div class="code-editor__pane" id="paneCss" data-pane="css"></div>
+      <div class="code-editor__pane" id="paneJs" data-pane="js"></div>
+    </section>
+
+    <div class="actions">
+      <button type="button" id="previewBtn">معاينة القالب</button>
+      <button type="submit" id="submitBtn">
+        <span id="submitLabel">نشر القالب</span>
+      </button>
+    </div>
+
+  </form>
+</main>
+
+<div id="preview" hidden>
+  <div class="preview-header">
+    <strong id="previewTitle">معاينة</strong>
+    <button type="button" data-close>إغلاق</button>
+  </div>
+  <iframe id="previewFrame" title="معاينة القالب"></iframe>
+</div>
+
+<footer>© 2026 WINE 🍷 — All Rights Reserved.</footer>
+
+<script type="module" src="submit.js"></script>
+</body>
+  </html>
+  
